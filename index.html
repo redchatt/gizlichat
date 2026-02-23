@@ -1,4 +1,84 @@
-const savedMsgs = JSON.parse(localStorage.getItem('chat_data') || '[]');
+<!DOCTYPE html>
+<html lang="az">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Məxfi Chat v2</title>
+    <style>
+        body { font-family: 'Segoe UI', sans-serif; background: #0f172a; color: white; display: flex; justify-content: center; align-items: center; height: 100vh; margin: 0; }
+        .box { background: #1e293b; padding: 25px; border-radius: 15px; width: 350px; text-align: center; box-shadow: 0 10px 30px rgba(0,0,0,0.5); border: 1px solid #334155; }
+        input { width: 100%; padding: 12px; margin: 10px 0; border-radius: 8px; border: 1px solid #334155; background: #0f172a; color: white; box-sizing: border-box; outline: none; }
+        input:focus { border-color: #3b82f6; }
+        button { width: 100%; padding: 12px; background: #3b82f6; color: white; border: none; border-radius: 8px; cursor: pointer; font-weight: bold; }
+        #chat-section { display: none; width: 400px; }
+        #messages { height: 350px; overflow-y: auto; background: #111827; margin-bottom: 15px; padding: 15px; border-radius: 10px; text-align: left; border: 1px solid #334155; }
+        .msg-item { margin-bottom: 12px; padding: 10px; background: #1e293b; border-radius: 8px; border-left: 4px solid #3b82f6; position: relative; }
+        .msg-item b { color: #60a5fa; display: block; font-size: 13px; margin-bottom: 3px; }
+        .time { font-size: 10px; color: #64748b; position: absolute; right: 10px; top: 10px; }
+    </style>
+</head>
+<body>
+
+    <div class="box" id="login-section">
+        <h2 style="color: #3b82f6; margin-top: 0;">Giriş Kodu</h2>
+        <input type="password" id="pass-code" placeholder="Kodu daxil edin...">
+        <button onclick="login()">DAXİL OL</button>
+        <p id="err" style="color: #ef4444; font-size: 13px; margin-top: 10px;"></p>
+    </div>
+
+    <div class="box" id="chat-section">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
+            <h3 id="user-title" style="color: #60a5fa; margin: 0; font-size: 16px;"></h3>
+            <button onclick="clearChat()" style="width: auto; padding: 5px 10px; font-size: 10px; background: #ef4444;">Təmizlə</button>
+        </div>
+        <div id="messages"></div>
+        <div style="display: flex; gap: 8px;">
+            <input type="text" id="msg" placeholder="Mesaj yaz..." style="margin: 0;">
+            <button onclick="send()" style="width: 60px;">></button>
+        </div>
+    </div>
+
+    <script>
+        // Giriş Kodları
+        const users = {
+            "777": "Osman",
+            "123": "Dost",
+            "admin": "Rəis"
+        };
+
+        let activeUser = "";
+
+        // Mesajları yaddaşdan (localStorage) gətirir
+        function loadMessages() {
+            const savedMsgs = JSON.parse(localStorage.getItem('chat_data') || '[]');
+            const box = document.getElementById('messages');
+            box.innerHTML = "";
+            savedMsgs.forEach(m => {
+                box.innerHTML += <div class="msg-item"><span class="time">${m.time}</span><b>${m.user}</b>${m.text}</div>;
+            });
+            box.scrollTop = box.scrollHeight;
+        }
+
+        function login() {
+            const code = document.getElementById('pass-code').value;
+            if (users[code]) {
+                activeUser = users[code];
+                document.getElementById('login-section').style.display = 'none';
+                document.getElementById('chat-section').style.display = 'block';
+                document.getElementById('user-title').innerText = activeUser;
+                loadMessages();
+            } else {
+                document.getElementById('err').innerText = "Kod səhvdir!";
+            }
+        }
+
+        function send() {
+            const m = document.getElementById('msg');
+            if (m.value.trim() === "") return;
+
+            const time = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+            const newMsg = { user: activeUser, text: m.value, time: time };
+                    const savedMsgs = JSON.parse(localStorage.getItem('chat_data') || '[]');
             savedMsgs.push(newMsg);
             localStorage.setItem('chat_data', JSON.stringify(savedMsgs));
 
@@ -20,3 +100,4 @@ const savedMsgs = JSON.parse(localStorage.getItem('chat_data') || '[]');
     </script>
 </body>
 </html>
+                    
