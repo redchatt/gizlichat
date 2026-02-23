@@ -1,0 +1,34 @@
+<!DOCTYPE html>
+<html lang="az">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Məxfi Chat</title>
+    <style>
+        body { font-family: sans-serif; background: #0f172a; color: white; display: flex; justify-content: center; align-items: center; height: 100vh; margin: 0; }
+        .box { background: #1e293b; padding: 25px; border-radius: 12px; width: 320px; text-align: center; box-shadow: 0 4px 15px rgba(0,0,0,0.3); }
+        input { width: 100%; padding: 10px; margin: 10px 0; border-radius: 6px; border: 1px solid #334155; background: #111827; color: white; box-sizing: border-box; }
+        button { width: 100%; padding: 10px; background: #3b82f6; color: white; border: none; border-radius: 6px; cursor: pointer; font-weight: bold; }
+        #chat-section { display: none; }
+        #messages { height: 250px; overflow-y: auto; background: #111827; margin-bottom: 10px; padding: 10px; border-radius: 6px; text-align: left; font-size: 14px; }
+    </style>
+</head>
+<body>
+
+    <div class="box" id="login-section">
+        <h2>Giriş Kodu</h2>
+        <input type="password" id="pass-code" placeholder="Kodu daxil edin...">
+        <button onclick="login()">Giriş</button>
+        <p id="err" style="color: #ef4444; font-size: 13px;"></p>
+    </div>
+
+    <div class="box" id="chat-section">
+        <h3 id="user-title">Xoş gəldin!</h3>
+        <div id="messages"></div>
+        <input type="text" id="msg" placeholder="Mesaj yazın...">
+        <button onclick="send()">Göndər</button>
+    </div>
+
+    <script src="script.js"></script>
+</body>
+</html>
