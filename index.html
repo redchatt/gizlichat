@@ -2,38 +2,58 @@
 <html lang="az">
 <head>
     <meta charset="UTF-8">
-    <title>ESC211 ADMIN</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Məxfi Portal | GizliChat</title>
     <script src="https://www.gstatic.com/firebasejs/9.6.1/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.6.1/firebase-database-compat.js"></script>
     <style>
-        body { background: #020617; color: white; font-family: sans-serif; text-align: center; padding-top: 50px; }
-        .box { background: #1e293b; padding: 30px; border-radius: 15px; border: 2px solid #3b82f6; display: inline-block; }
-        input { display: block; width: 220px; padding: 12px; margin: 10px auto; border-radius: 8px; border: none; }
-        button { width: 245px; padding: 12px; background: #3b82f6; color: white; border: none; border-radius: 8px; cursor: pointer; font-weight: bold; }
-        #panel { display: none; margin-top: 30px; }
+        :root { --blue: #3b82f6; --dark: #020617; }
+        body, html { margin: 0; padding: 0; height: 100%; overflow: hidden; background: var(--dark); color: white; font-family: 'Segoe UI', sans-serif; }
+        #canvas { position: fixed; inset: 0; z-index: -1; }
+        
+        /* GİRİŞ EKRANI */
+        #login { position: fixed; inset: 0; display: flex; justify-content: center; align-items: center; z-index: 100; background: rgba(2,6,23,0.9); backdrop-filter: blur(15px); }
+        .box { background: #1e293b; padding: 40px; border-radius: 25px; border: 1px solid var(--blue); width: 300px; text-align: center; box-shadow: 0 0 20px rgba(59,130,246,0.3); }
+        input[type="text"], input[type="password"] { width: 100%; padding: 12px; margin: 10px 0; border-radius: 10px; border: 1px solid #334155; background: #020617; color: white; outline: none; box-sizing: border-box; }
+        button { width: 100%; padding: 12px; background: var(--blue); color: white; border: none; border-radius: 10px; cursor: pointer; font-weight: bold; }
+
+        /* CHAT EKRANI */
+        #app { display: none; flex-direction: column; height: 100vh; }
+        header { padding: 15px; background: #1e293b; border-bottom: 1px solid #334155; text-align: center; font-size: 18px; font-weight: bold; color: var(--blue); }
+        #msgs { flex: 1; overflow-y: auto; padding: 20px; display: flex; flex-direction: column; gap: 12px; }
+        .msg { padding: 12px; border-radius: 15px; background: #334155; max-width: 80%; line-height: 1.4; word-wrap: break-word; }
+        .msg.me { align-self: flex-end; background: var(--blue); }
+        .msg img, .msg video { max-width: 100%; border-radius: 10px; margin-top: 5px; display: block; }
+        
+        .bar { padding: 15px; background: #1e293b; display: flex; align-items: center; gap: 8px; border-top: 1px solid #444; }
+        .btn-m { font-size: 24px; cursor: pointer; background: none; border: none; color: #94a3b8; outline: none; }
     </style>
 </head>
 <body>
-    <div id="auth">
+    <canvas id="canvas"></canvas>
+    
+    <div id="login">
         <div class="box">
-            <h2>GİRİŞ PANELİ</h2>
-            <input type="text" id="adminUser" placeholder="İstifadəçi adı">
-            <input type="password" id="adminPass" placeholder="Şifrə">
-            <button onclick="checkAdmin()">DAXİL OL</button>
+            <h2 style="margin-top:0;">Giriş Portalı</h2>
+            <input type="password" id="pIn" placeholder="Məxfi Kodunuz">
+            <button onclick="login()">DAXİL OL</button>
         </div>
     </div>
 
-    <div id="panel">
-        <h1>Xoş gəldin, Rəis!</h1>
-        <div class="box">
-            <input type="text" id="nName" placeholder="Dostun Adı">
-            <input type="text" id="nCode" placeholder="Giriş Kodu">
-            <button onclick="saveUser()">KODU YARAT</button>
+    <div id="app">
+        <header id="uName">Yüklənir...</header>
+        <div id="msgs"></div>
+        <div class="bar">
+            <input type="file" id="fIn" style="display:none;" onchange="upFile(this)">
+            <button class="btn-m" onclick="document.getElementById('fIn').click()">📷</button>
+            <button class="btn-m" id="mic" onmousedown="startS()" onmouseup="stopS()" ontouchstart="startS()" ontouchend="stopS()">🎤</button>
+            <input type="text" id="mText" placeholder="Mesaj yazın..." style="margin:0;">
+            <button onclick="send()" style="width: 60px; background: var(--blue); border-radius: 10px; border:none; color:white; font-weight:bold; cursor:pointer;">></button>
         </div>
-        <div id="uList" style="margin-top:20px;"></div>
     </div>
 
     <script>
+        // FIREBASE KONFİQURASİYASI
         const firebaseConfig = {
             apiKey: "AIzaSyDzNOIEJfrKFGzrMzeT0Jaf6OCHBEq_LuA",
             authDomain: "gizlichat-839ce.firebaseapp.com",
@@ -42,45 +62,83 @@
         };
         firebase.initializeApp(firebaseConfig);
         const db = firebase.database();
+        // ARXA FON ANİMASİYASI
+        const cvs = document.getElementById('canvas');
+        const ctx = cvs.getContext('2d');
+        let dots = [];
+        cvs.width = window.innerWidth; cvs.height = window.innerHeight;
+        for(let i=0; i<60; i++) dots.push({x:Math.random()*cvs.width, y:Math.random()*cvs.height, vx:Math.random()-0.5, vy:Math.random()-0.5});
+        function anim() {
+            ctx.clearRect(0,0,cvs.width,cvs.height); ctx.fillStyle="rgba(59,130,246,0.5)";
+            dots.forEach(d=>{ d.x+=d.vx; d.y+=d.vy; if(d.x<0d.x>cvs.width)d.vx*=-1; if(d.y<0d.y>cvs.height)d.vy*=-1; ctx.beginPath(); ctx.arc(d.x,d.y,2,0,Math.PI*2); ctx.fill(); });
+            requestAnimationFrame(anim);
+        }
+        anim();
 
-        function checkAdmin() {
-            const u = document.getElementById('adminUser').value.trim();
-            const p = document.getElementById('adminPass').value.trim();
-            
-            // YENİ SADƏ KODLAR:
-            if(u === "escobar" && p === "2007") {
-                document.getElementById('auth').style.display = 'none';
-                document.getElementById('panel').style.display = 'block';
-                showUsers();
-            } else {
-                alert("İstifadəçi adı və ya şifrə SƏHVDİR!");
-            }
+        let user = "";
+        let rec;
+        let chunks = [];
+
+        function login() {
+            let p = document.getElementById('pIn').value;
+            db.ref('users/' + p).once('value', s => {
+                if(s.exists()){
+                    user = s.val().name;
+                    document.getElementById('uName').innerText = "Rəis: " + user;
+                    document.getElementById('login').style.display='none';
+                    document.getElementById('app').style.display='flex';
+                    listen();
+                } else { alert("Səhv kod! Admin-dən (Escobar) icazə alın."); }
+            });
         }
 
-        function saveUser() {
-            const name = document.getElementById('nName').value;
-            const code = document.getElementById('nCode').value;
-            if(name && code) {
-                db.ref('users/' + code).set({name: name}).then(() => {
-                    alert("Uğurla yaradıldı!");
-                    document.getElementById('nName').value = "";
-                    document.getElementById('nCode').value = "";
-                });
-            }
+        function send(url = null, type = 'text') {
+            let t = document.getElementById('mText').value;
+            if(!t && !url) return;
+            db.ref('messages').push({ n: user, t: t, m: url, type: type, time: Date.now() });
+            document.getElementById('mText').value = "";
         }
 
-        function showUsers() {
-            db.ref('users').on('value', s => {
-                const list = document.getElementById('uList');
-                list.innerHTML = "<h3>İstifadəçilər:</h3>";
-                s.forEach(child => {
-                    list.innerHTML += <div style="background:#1e293b; margin:5px; padding:10px; border-radius:5px;">
-                        ${child.val().name} (${child.key}) 
-                        <button onclick="db.ref('users/${child.key}').remove()" style="width:60px; background:red; padding:5px; margin-left:10px;">SİL</button>
-                    </div>;
-                });
+        function upFile(input) {
+            const file = input.files[0];
+            const reader = new FileReader();
+            reader.onload = e => send(e.target.result, file.type.startsWith('video') ? 'video' : 'image');
+            reader.readAsDataURL(file);
+        }
+
+        async function startS() {
+            try {
+                const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+                rec = new MediaRecorder(stream);
+                rec.ondataavailable = e => chunks.push(e.data);
+                rec.onstop = () => {
+                    const b = new Blob(chunks, { type: 'audio/ogg' });
+                    const r = new FileReader();
+                    r.onload = e => send(e.target.result, 'audio');
+                    r.readAsDataURL(b);
+                    chunks = [];
+                };
+                rec.start(); 
+                document.getElementById('mic').style.color = "red";
+            } catch(e) { alert("Mikrofon icazəsi verilmədi."); }
+        }
+        
+        function stopS() { if(rec && rec.state !== "inactive") { rec.stop(); document.getElementById('mic').style.color = "#94a3b8"; } }
+
+        function listen() {
+            db.ref('messages').limitToLast(50).on('child_added', s => {
+                let d = s.val();
+                let side = d.n === user ? "me" : "";
+                let h = <b>${d.n}:</b><br>;
+                if(d.t) h += <div>${d.t}</div>;
+                if(d.type === 'image') h += <img src="${d.m}">;
+                if(d.type === 'video') h += <video controls src="${d.m}"></video>;
+                if(d.type === 'audio') h += <audio controls src="${d.m}"></audio>;
+                document.getElementById('msgs').innerHTML += <div class="msg ${side}">${h}</div>;
+                document.getElementById('msgs').scrollTop = document.getElementById('msgs').scrollHeight;
             });
         }
     </script>
 </body>
 </html>
+        
