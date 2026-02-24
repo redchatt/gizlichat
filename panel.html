@@ -1,0 +1,82 @@
+<!DOCTYPE html>
+<html lang="az">
+<head>
+    <meta charset="UTF-8">
+    <title>ESC211 | PANEL</title>
+    <script src="https://www.gstatic.com/firebasejs/9.6.1/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.6.1/firebase-database-compat.js"></script>
+    <style>
+        body { background: #020617; color: white; font-family: sans-serif; text-align: center; padding-top: 100px; }
+        .box { background: #1e293b; padding: 30px; border-radius: 15px; border: 2px solid #3b82f6; display: inline-block; }
+        input { display: block; width: 220px; padding: 12px; margin: 10px auto; border-radius: 8px; border: none; }
+        button { width: 245px; padding: 12px; background: #3b82f6; color: white; border: none; border-radius: 8px; cursor: pointer; font-weight: bold; }
+        #admin-ui { display: none; margin-top: 30px; }
+    </style>
+</head>
+<body>
+    <div id="login-ui">
+        <div class="box">
+            <h2 style="color:#3b82f6">RƏİS GİRİŞİ</h2>
+            <input type="text" id="u" placeholder="İstifadəçi adı">
+            <input type="password" id="p" placeholder="Şifrə">
+            <button onclick="login()">GİRİŞ ET</button>
+        </div>
+    </div>
+
+    <div id="admin-ui">
+        <h1>Xoş gəldin, Escobar!</h1>
+        <div class="box">
+            <input type="text" id="n" placeholder="Dostun Adı">
+            <input type="text" id="c" placeholder="Giriş Kodu">
+            <button onclick="save()">KOD YARAT</button>
+        </div>
+        <div id="list" style="margin-top:20px;"></div>
+    </div>
+
+    <script>
+        const firebaseConfig = {
+            apiKey: "AIzaSyDzNOIEJfrKFGzrMzeT0Jaf6OCHBEq_LuA",
+            authDomain: "gizlichat-839ce.firebaseapp.com",
+            databaseURL: "https://gizlichat-839ce-default-rtdb.europe-west1.firebasedatabase.app/",
+            projectId: "gizlichat-839ce"
+        };
+        firebase.initializeApp(firebaseConfig);
+        const db = firebase.database();
+
+        function login() {
+            const user = document.getElementById('u').value.trim();
+            const pass = document.getElementById('p').value.trim();
+            if(user === "escobar" && pass === "2007") {
+                document.getElementById('login-ui').style.display = 'none';
+                document.getElementById('admin-ui').style.display = 'block';
+                load();
+            } else { alert("Səhvdir!"); }
+        }
+
+        function save() {
+            const name = document.getElementById('n').value;
+            const code = document.getElementById('c').value;
+            if(name && code) {
+                db.ref('users/' + code).set({name: name}).then(() => {
+                    alert("Kod Yaradıldı!");
+                    document.getElementById('n').value = "";
+                    document.getElementById('c').value = "";
+                });
+            }
+        }
+
+        function load() {
+            db.ref('users').on('value', s => {
+                const area = document.getElementById('list');
+                area.innerHTML = "<h3>Siyahı:</h3>";
+                s.forEach(child => {
+                    area.innerHTML += <div style="margin:10px;">
+                        ${child.val().name} (${child.key}) 
+                        <button onclick="firebase.database().ref('users/${child.key}').remove()" style="width:50px; background:red;">SİL</button>
+                    </div>;
+                });
+            });
+        }
+    </script>
+</body>
+</html>
