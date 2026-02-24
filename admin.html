@@ -2,40 +2,35 @@
 <html lang="az">
 <head>
     <meta charset="UTF-8">
-    <title>ESC211 | Rəis Paneli</title>
+    <title>ESC211 ADMIN</title>
     <script src="https://www.gstatic.com/firebasejs/9.6.1/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.6.1/firebase-database-compat.js"></script>
     <style>
-        body { background: #020617; color: white; font-family: sans-serif; text-align: center; margin: 0; padding: 20px; }
-        canvas { position: fixed; inset: 0; z-index: -1; }
-        .box { background: #1e293b; padding: 30px; border-radius: 15px; border: 1px solid #3b82f6; display: inline-block; margin-top: 50px; }
-        input { display: block; width: 250px; padding: 12px; margin: 10px auto; border-radius: 8px; border: none; }
-        button { width: 275px; padding: 12px; background: #3b82f6; color: white; border: none; border-radius: 8px; cursor: pointer; font-weight: bold; }
-        #main-ui { display: none; }
-        .user-row { background: #1e293b; padding: 10px; margin: 5px auto; width: 300px; border-radius: 8px; display: flex; justify-content: space-between; align-items: center; }
+        body { background: #020617; color: white; font-family: sans-serif; text-align: center; padding-top: 50px; }
+        .box { background: #1e293b; padding: 30px; border-radius: 15px; border: 2px solid #3b82f6; display: inline-block; }
+        input { display: block; width: 220px; padding: 12px; margin: 10px auto; border-radius: 8px; border: none; }
+        button { width: 245px; padding: 12px; background: #3b82f6; color: white; border: none; border-radius: 8px; cursor: pointer; font-weight: bold; }
+        #panel { display: none; margin-top: 30px; }
     </style>
 </head>
 <body>
-    <canvas id="bg"></canvas>
-
-    <div id="auth-ui">
+    <div id="auth">
         <div class="box">
-            <h2 style="color:#3b82f6">ADMİN GİRİŞİ</h2>
-            <input type="text" id="uField" placeholder="İstifadəçi Adı">
-            <input type="password" id="pField" placeholder="Şifrə">
-            <button onclick="checkAccess()">DAXİL OL</button>
+            <h2>GİRİŞ PANELİ</h2>
+            <input type="text" id="adminUser" placeholder="İstifadəçi adı">
+            <input type="password" id="adminPass" placeholder="Şifrə">
+            <button onclick="checkAdmin()">DAXİL OL</button>
         </div>
     </div>
 
-    <div id="main-ui">
-        <h1>Xoş Gəldin, Escobar211_</h1>
-        <div class="box" style="margin-top: 20px;">
-            <input type="text" id="newName" placeholder="Yeni İstifadəçi Adı">
-            <input type="text" id="newCode" placeholder="Giriş Kodu">
-            <button onclick="saveUser()">ƏLAVƏ ET</button>
-            <button onclick="firebase.database().ref('messages').remove()" style="background:orange; margin-top:10px;">Çatı Təmizlə</button>
+    <div id="panel">
+        <h1>Xoş gəldin, Rəis!</h1>
+        <div class="box">
+            <input type="text" id="nName" placeholder="Dostun Adı">
+            <input type="text" id="nCode" placeholder="Giriş Kodu">
+            <button onclick="saveUser()">KODU YARAT</button>
         </div>
-        <div id="list" style="margin-top: 20px;"></div>
+        <div id="uList" style="margin-top:20px;"></div>
     </div>
 
     <script>
@@ -48,58 +43,44 @@
         firebase.initializeApp(firebaseConfig);
         const db = firebase.database();
 
-        function checkAccess() {
-            const user = document.getElementById('uField').value;
-            const pass = document.getElementById('pField').value;
+        function checkAdmin() {
+            const u = document.getElementById('adminUser').value.trim();
+            const p = document.getElementById('adminPass').value.trim();
             
-            // Boşluqları təmizləyərək yoxlayırıq
-            if(user.trim() === "Escobar211_" && pass.trim() === "anaata2007_1") {
-                document.getElementById('auth-ui').style.display = 'none';
-                document.getElementById('main-ui').style.display = 'block';
-                fetchUsers();
+            // YENİ SADƏ KODLAR:
+            if(u === "escobar" && p === "2007") {
+                document.getElementById('auth').style.display = 'none';
+                document.getElementById('panel').style.display = 'block';
+                showUsers();
             } else {
-                alert("Məlumatlar səhvdir!");
+                alert("İstifadəçi adı və ya şifrə SƏHVDİR!");
             }
         }
 
         function saveUser() {
-            const n = document.getElementById('newName').value;
-            const c = document.getElementById('newCode').value;
-            if(n && c) {
-                db.ref('users/' + c).set({ name: n }).then(() => {
-                    alert("Yaradıldı!");
-                    document.getElementById('newName').value = "";
-                    document.getElementById('newCode').value = "";
+            const name = document.getElementById('nName').value;
+            const code = document.getElementById('nCode').value;
+            if(name && code) {
+                db.ref('users/' + code).set({name: name}).then(() => {
+                    alert("Uğurla yaradıldı!");
+                    document.getElementById('nName').value = "";
+                    document.getElementById('nCode').value = "";
                 });
             }
         }
 
-        function fetchUsers() {
+        function showUsers() {
             db.ref('users').on('value', s => {
-                const area = document.getElementById('list');
-                area.innerHTML = "<h3>İstifadəçilər:</h3>";
+                const list = document.getElementById('uList');
+                list.innerHTML = "<h3>İstifadəçilər:</h3>";
                 s.forEach(child => {
-                    area.innerHTML += `
-                    <div class="user-row">
-                            <span>${child.val().name} (${child.key})</span>
-                            <button onclick="firebase.database().ref('users/${child.key}').remove()" style="width:50px; background:red; padding:5px;">SİL</button>
-                        </div>`;
+                    list.innerHTML += <div style="background:#1e293b; margin:5px; padding:10px; border-radius:5px;">
+                        ${child.val().name} (${child.key}) 
+                        <button onclick="db.ref('users/${child.key}').remove()" style="width:60px; background:red; padding:5px; margin-left:10px;">SİL</button>
+                    </div>;
                 });
             });
         }
-
-        // Animasiya
-        const c = document.getElementById('bg');
-        const x = c.getContext('2d');
-        c.width = window.innerWidth; c.height = window.innerHeight;
-        let p = [];
-        for(let i=0; i<50; i++) p.push({x:Math.random()*c.width, y:Math.random()*c.height, dx:Math.random()-0.5, dy:Math.random()-0.5});
-        function draw() {
-            x.clearRect(0,0,c.width,c.height); x.fillStyle="#3b82f6";
-            p.forEach(i=>{ i.x+=i.dx; i.y+=i.dy; if(i.x<0i.x>c.width)i.dx*=-1; if(i.y<0i.y>c.height)i.dy*=-1; x.beginPath(); x.arc(i.x,i.y,2,0,Math.PI*2); x.fill(); });
-            requestAnimationFrame(draw);
-        }
-        draw();
     </script>
 </body>
 </html>
