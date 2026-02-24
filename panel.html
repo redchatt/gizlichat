@@ -1,0 +1,151 @@
+<!DOCTYPE html>
+<html lang="az">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>BOSS PANEL | ESCOBAR</title>
+    <script src="https://www.gstatic.com/firebasejs/9.6.1/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.6.1/firebase-database-compat.js"></script>
+    <style>
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body { background: #020617; color: white; font-family: sans-serif; display: flex; justify-content: center; padding: 20px; }
+        .container { width: 100%; max-width: 450px; }
+        #login-box { background: #1e293b; padding: 30px; border-radius: 20px; border: 2px solid #3b82f6; text-align: center; margin-top: 50px; }
+        input { width: 100%; padding: 12px; margin: 10px 0; border-radius: 8px; border: 1px solid #334155; background: #0f172a; color: white; outline: none; text-align: center; }
+        button { width: 100%; padding: 12px; border-radius: 8px; border: none; font-weight: bold; cursor: pointer; margin-top: 10px; }
+        .btn-login { background: #3b82f6; color: white; }
+        #admin-content { display: none; width: 100%; }
+        .card { background: #1e293b; padding: 20px; border-radius: 15px; border: 1px solid #334155; margin-bottom: 20px; }
+        h2 { color: #3b82f6; margin-bottom: 15px; font-size: 18px; text-align: center; }
+        .user-item { background: #0f172a; padding: 12px; border-radius: 10px; margin-bottom: 8px; display: flex; justify-content: space-between; align-items: center; border: 1px solid #334155; }
+        .status-dot { font-size: 11px; font-weight: bold; padding: 2px 6px; border-radius: 4px; margin-left: 5px; }
+        .online { background: #10b981; color: white; }
+        .offline { background: #475569; color: white; }
+        .btn-add { background: #10b981; color: white; }
+        .btn-del { background: #ef4444; color: white; width: 70px; font-size: 12px; }
+        .btn-clear-all { background: #991b1b; color: white; border: 2px solid #ef4444; }
+    </style>
+</head>
+<body>
+
+    <div class="container">
+        <div id="login-box">
+            <h1 style="color: #3b82f6; margin-bottom: 20px;">BOSS LOGIN</h1>
+            <input type="text" id="adminUser" placeholder="İstifadəçi Adı">
+            <input type="password" id="adminPass" placeholder="Giriş Kodu">
+            <button onclick="checkAdmin()" class="btn-login">DAXİL OL</button>
+        </div>
+
+        <div id="admin-content">
+            <div class="card">
+                <h2>UŞAQ ƏLAVƏ ET</h2>
+                <input type="text" id="targetName" placeholder="Ad (Məs: Murad)">
+                <input type="text" id="targetCode" placeholder="Kod (Məs: 777)">
+                <button onclick="addUser()" class="btn-add">SİSTEMƏ ƏLAVƏ ET</button>
+            </div>
+
+            <div class="card">
+                <h2>UŞAQLAR VƏ STATUSLAR</h2>
+                <div id="user-list">Yüklenir...</div>
+            </div>
+
+            <div class="card" style="border-color: #ef4444;">
+                <h2 style="color: #ef4444;">SİSTEMİ TƏMİZLƏ</h2>
+                <button onclick="clearMessages()" class="btn-clear-all">💣 BÜTÜN MESAJLARI SİL</button>
+            </div>
+            
+            <button onclick="location.reload()" style="background: #334155; color: white;">ÇIXIŞ</button>
+        </div>
+    </div>
+
+    <script>
+        // Firebase Konfiqurasiyası
+        var config = {
+            apiKey: "AIzaSyDzNOIEJfrKFGzrMzeT0Jaf6OCHBEq_LuA",
+            authDomain: "gizlichat-839ce.firebaseapp.com",
+            databaseURL: "https://gizlichat-839ce-default-rtdb.europe-west1.firebasedatabase.app/",
+            projectId: "gizlichat-839ce"
+        };
+        firebase.initializeApp(config);
+        var db = firebase.database();
+
+        // Admin Giriş Yoxlanışı
+        function checkAdmin() {
+            var u = document.getElementById("adminUser").value;
+            var p = document.getElementById("adminPass").value;
+            if(u === "Escobar" && p === "2007") {
+                document.getElementById("login-box").style.display = "none";
+                document.getElementById("admin-content").style.display = "block";
+                loadUsers();
+            } else {
+                alert("Boss deyilsən!");
+            }
+        }
+
+        // İstifadəçi Əlavə Etmə
+        function addUser() {
+            var n = document.getElementById("targetName").value.trim();
+            var c = document.getElementById("targetCode").value.trim();
+
+            if(n && c) {
+                db.ref("users/" + c).set({ 
+                    name: n,
+                    online: false 
+                }).then(function() {
+                    alert("Əlavə olundu!");
+                    document.getElementById("targetName").value = "";
+                    document.getElementById("targetCode").value = "";
+                });
+            }
+        }
+
+        // İstifadəçi Siyahısını Yüklə (Online/Offline Statusu ilə)
+        
+        function loadUsers() {
+            db.ref("users").on("value", function(snapshot) {
+                var list = document.getElementById("user-list");
+                list.innerHTML = "";
+                
+                snapshot.forEach(function(child) {
+                    var data = child.val();
+                    var code = child.key;
+                    
+                    var div = document.createElement("div");
+                    div.className = "user-item";
+                    
+                    var info = document.createElement("div");
+                    var statusTxt = data.online ? "Online" : "Offline";
+                    var statusCls = data.online ? "status-dot online" : "status-dot offline";
+                    
+                    info.innerHTML = "<b>" + data.name + "</b> <span class='" + statusCls + "'>" + statusTxt + "</span><br><small>Kod: " + code + "</small>";
+                    
+                    var btn = document.createElement("button");
+                    btn.innerText = "SİL";
+                    btn.className = "btn-del";
+                    btn.onclick = function() { removeUser(code); };
+                    
+                    div.appendChild(info);
+                    div.appendChild(btn);
+                    list.appendChild(div);
+                });
+            });
+        }
+
+        // İstifadəçi Sil (Ban)
+        function removeUser(code) {
+            if(confirm("Silmək istəyirsən?")) {
+                db.ref("users/" + code).remove();
+            }
+        }
+
+        // Mesajları Təmizlə
+        function clearMessages() {
+            if(confirm("Bütün mesajlar silinsin?")) {
+                db.ref("messages").remove().then(function() {
+                    alert("Təmizləndi!");
+                });
+            }
+        }
+    </script>
+</body>
+</html>
