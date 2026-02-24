@@ -1,0 +1,253 @@
+<!DOCTYPE html>
+<html lang="az">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>QRUP ÇAT</title>
+    <script src="https://www.gstatic.com/firebasejs/9.6.1/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.6.1/firebase-database-compat.js"></script>
+    <style>
+        * { box-sizing: border-box; margin: 0; padding: 0; user-select: none; }
+        body { background: #020617; color: white; font-family: sans-serif; height: 100vh; overflow: hidden; }
+        #bg-canvas { position: fixed; top: 0; left: 0; z-index: -1; pointer-events: none; }
+        
+        /* Giriş */
+        .login-box { background: rgba(30, 41, 59, 0.95); padding: 30px; border-radius: 20px; border: 2px solid #3b82f6; text-align: center; width: 90%; max-width: 320px; position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); backdrop-filter: blur(10px); }
+        .login-box input { width: 100%; padding: 15px; margin-bottom: 15px; border-radius: 12px; background: #0f172a; color: white; border: 1px solid #3b82f6; text-align: center; outline: none; }
+        .login-box button { width: 100%; padding: 15px; background: #3b82f6; color: white; border: none; border-radius: 12px; font-weight: bold; cursor: pointer; }
+
+        /* Başlıq */
+        .header { background: #1e293b; padding: 10px 15px; display: flex; justify-content: space-between; align-items: center; border-bottom: 2px solid #3b82f6; }
+        .avatar { width: 40px; height: 40px; border-radius: 50%; border: 2px solid #3b82f6; object-fit: cover; cursor: pointer; background: #0f172a; }
+        
+        /* Çat Sahəsi */
+        #chat-screen { display: none; flex-direction: column; height: 100vh; }
+        .msg-area { flex: 1; overflow-y: auto; padding: 15px; display: flex; flex-direction: column; gap: 12px; padding-bottom: 120px; }
+        .msg { padding: 12px; border-radius: 18px; max-width: 85%; font-size: 15px; position: relative; cursor: pointer; }
+        .msg.me { align-self: flex-end; background: #3b82f6; border-bottom-right-radius: 4px; }
+        .msg.other { align-self: flex-start; background: #334155; border-bottom-left-radius: 4px; }
+        .msg b { display: flex; align-items: center; font-size: 11px; margin-bottom: 5px; color: #cbd5e1; }
+        .msg img { max-width: 100%; border-radius: 10px; margin-top: 5px; }
+        .pfp-in-msg { width: 25px; height: 25px; border-radius: 50%; margin-right: 8px; border: 1px solid #fff; }
+        audio { height: 35px; width: 180px; margin-top: 5px; filter: invert(1); }
+
+        /* Reply Bloku */
+        .reply-box-in-msg { background: rgba(0,0,0,0.2); padding: 6px; border-left: 3px solid #fff; border-radius: 4px; margin-bottom: 8px; font-size: 12px; }
+
+        /* Footer */
+        .footer { position: fixed; bottom: 0; width: 100%; background: #0f172a; border-top: 1px solid #334155; padding: 10px; z-index: 10; }
+        #reply-bar { display: none; background: #1e293b; padding: 8px 15px; border-bottom: 1px solid #3b82f6; justify-content: space-between; align-items: center; margin-bottom: 5px; border-radius: 8px; }
+        .input-row { display: flex; gap: 8px; align-items: center; }
+        .icon-btn { font-size: 20px; background: #1e293b; width: 45px; height: 45px; border-radius: 50%; border: none; color: white; cursor: pointer; display: flex; align-items: center; justify-content: center; }
+        .footer input { flex: 1; padding: 12px; border-radius: 12px; background: #1e293b; border: 1px solid #334155; color: white; outline: none; font-size: 16px; }
+        
+        #profile-popup { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.95); display: none; flex-direction: column; align-items: center; justify-content: center; z-index: 100; }
+    </style>
+</head>
+<body oncontextmenu="return false;">
+
+    <canvas id="bg-canvas"></canvas>
+    <div id="login-screen">
+        <div class="login-box">
+            <h2 style="color:#3b82f6; margin-bottom:20px;">GİRİŞ</h2>
+            <input type="text" id="loginUser" placeholder="İstifadəçi Adı">
+            <input type="password" id="loginPass" placeholder="Giriş Kodu">
+            <button onclick="enterChat()">DAXİL OL</button>
+        </div>
+    </div>
+
+    <div id="profile-popup">
+        <h3 style="margin-bottom:20px;">Profil Şəkli Seç</h3>
+        <input type="file" id="pfpInput" accept="image/*">
+        <button onclick="saveProfile()" style="margin-top:20px; padding:10px 30px; background:#3b82f6; color:white; border:none; border-radius:10px;">Yadda Saxla</button>
+        <button onclick="document.getElementById('profile-popup').style.display='none'" style="background:transparent; color:#94a3b8; margin-top:10px;">Bağla</button>
+    </div>
+
+    <div id="chat-screen">
+        <div class="header">
+            <img id="myAvatar" src="https://cdn-icons-png.flaticon.com/512/149/149071.png" class="avatar" onclick="document.getElementById('profile-popup').style.display='flex'">
+            <b id="uName">...</b>
+            <span onclick="location.reload()" style="color:#ef4444; font-size:12px; font-weight:bold; cursor:pointer;">ÇIXIŞ</span>
+        </div>
+        
+        <div id="messages" class="msg-area"></div>
+
+        <div class="footer">
+            <div id="reply-bar">
+                <div style="font-size: 12px; color: #3b82f6;">Yanıtlanan: <b id="reply-to-name"></b></div>
+                <span onclick="cancelReply()" style="cursor:pointer; color: #ef4444; font-weight: bold; padding: 5px;">✕</span>
+            </div>
+            <div class="input-row">
+                <label class="icon-btn" for="imgInput">🖼️</label>
+                <input type="file" id="imgInput" accept="image/*" style="display:none;" onchange="sendMedia('img', this)">
+                <button class="icon-btn" id="voiceBtn">🎤</button>
+                <input type="text" id="msgInput" placeholder="Mesaj yazın...">
+                <button onclick="sendMsg()" class="icon-btn" style="background:#3b82f6;">></button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const config = {
+            apiKey: "AIzaSyDzNOIEJfrKFGzrMzeT0Jaf6OCHBEq_LuA",
+            authDomain: "gizlichat-839ce.firebaseapp.com",
+            databaseURL: "https://gizlichat-839ce-default-rtdb.europe-west1.firebasedatabase.app/",
+            projectId: "gizlichat-839ce"
+        };
+        firebase.initializeApp(config);
+        const db = firebase.database();
+        let myName = "", myCode = "", myPic = "", replyingTo = null;
+        
+        // Dublikatları önləmək üçün ID-ləri yadda saxlayan SET
+        const renderedIds = new Set();
+
+        function enterChat() {
+            const user = document.getElementById("loginUser").value.trim();
+            const pass = document.getElementById("loginPass").value.trim();
+            if(!user || !pass) return;
+
+            db.ref("users/" + pass).once("value", (s) => {
+                if(s.exists() && s.val().name === user) {
+                    myName = user; myCode = pass;
+                    myPic = s.val().pfp || "https://cdn-icons-png.flaticon.com/512/149/149071.png";
+                    startSession();
+                } else { alert("Məlumatlar tapılmadı!"); }
+            });
+        }
+
+        function startSession() {
+            document.getElementById("uName").innerText = myName;
+            document.getElementById("myAvatar").src = myPic;
+            document.getElementById("login-screen").style.display = "none";
+            document.getElementById("chat-screen").style.display = "flex";
+            startListen();
+            initVoice();
+        }
+
+        function saveProfile() {
+            const file = document.getElementById("pfpInput").files[0];
+            if(file) {
+                const reader = new FileReader();
+                reader.onload = (e) => {
+                    myPic = e.target.result;
+                    db.ref("users/" + myCode).update({ pfp: myPic });
+                    document.getElementById("myAvatar").src = myPic;
+                    document.getElementById("profile-popup").style.display = "none";
+                };
+                reader.readAsDataURL(file);
+            }
+        }
+
+        function sendMsg() {
+            const input = document.getElementById("msgInput");
+            const text = input.value.trim();
+            if(!text) return;
+            const data = { n: myName, m: text, p: myPic, ts: Date.now() };
+            if(replyingTo) { data.reply = replyingTo; cancelReply(); }
+            db.ref("messages").push(data);
+            input.value = "";
+        }
+
+        function sendMedia(type, inputEl) {
+            const file = inputEl.files[0];
+            if(!file) return;
+            const reader = new FileReader();
+            reader.onload = (e) => {
+                const data = { n: myName, p: myPic, ts: Date.now() };
+                data[type] = e.target.result;
+                if(replyingTo) { data.reply = replyingTo; cancelReply(); }
+                db.ref("messages").push(data);
+                inputEl.value = "";
+            };
+            reader.readAsDataURL(file);
+        }
+
+        function initVoice() {
+            let rec, chunks = [];
+            const btn = document.getElementById("voiceBtn");
+            btn.onclick = async () => {
+                if(!rec || rec.state === "inactive") {
+                    try {
+                        const s = await navigator.mediaDevices.getUserMedia({ audio: true });
+                        rec = new MediaRecorder(s); rec.start();
+                        btn.style.background = "#ef4444";
+                        rec.ondataavailable = (e) => chunks.push(e.data);
+                        rec.onstop = () => {
+                            const b = new Blob(chunks, { type: "audio/mp3" });
+                            const r = new FileReader();
+                            r.onload = (e) => {
+                                const data = { n: myName, audio: e.target.result, p: myPic, ts: Date.now() };
+                                if(replyingTo) { data.reply = replyingTo; cancelReply(); }
+                                db.ref("messages").push(data);
+                            };
+                            r.readAsDataURL(b); chunks = []; btn.style.background = "#1e293b";
+                        };
+                    } catch(e) { alert("Mikrofona icazə verilmədi!"); }
+                } else { rec.stop(); }
+            };
+        }
+
+        function startListen() {
+            const msgRef = db.ref("messages");
+            // Köhnə və yeni hər bir mesaj gələndə ID yoxla
+            msgRef.on("child_added", (s) => {
+                if(!renderedIds.has(s.key)) {
+                    renderMsg(s.val(), s.key);
+                    renderedIds.add(s.key);
+                }
+            });
+            // Admin təmizləyəndə
+            msgRef.on("value", (s) => {
+                if(!s.exists()) {
+                    document.getElementById("messages").innerHTML = "";
+                    renderedIds.clear();
+                }
+            });
+        }
+
+        function renderMsg(d, id) {
+            const area = document.getElementById("messages");
+            const div = document.createElement("div");
+            div.className = "msg " + (d.n === myName ? "me" : "other");
+            div.onclick = () => setReply(d.n, d.m || (d.audio ? "Səs" : "Şəkil"));
+
+            const b = document.createElement("b");
+            const senderImg = document.createElement("img");
+            senderImg.src = d.p || "https://cdn-icons-png.flaticon.com/512/149/149071.png";
+            senderImg.className = "pfp-in-msg";
+            b.appendChild(senderImg);
+            b.append(d.n);
+            div.appendChild(b);
+            if(d.reply) {
+                const rb = document.createElement("div");
+                rb.className = "reply-box-in-msg";
+                rb.innerHTML = "<b>" + d.reply.user + "</b>: " + d.reply.msg;
+                div.appendChild(rb);
+            }
+
+            if(d.audio) { const au = document.createElement("audio"); au.controls = true; au.src = d.audio; div.appendChild(au); }
+            else if(d.img) { const im = document.createElement("img"); im.src = d.img; div.appendChild(im); }
+            else { const sp = document.createElement("span"); sp.innerText = d.m; div.appendChild(sp); }
+
+            area.appendChild(div);
+            area.scrollTop = area.scrollHeight;
+        }
+
+        function setReply(user, msg) {
+            replyingTo = { user: user, msg: msg.substring(0, 20) + (msg.length > 20 ? "..." : "") };
+            document.getElementById("reply-bar").style.display = "flex";
+            document.getElementById("reply-to-name").innerText = user;
+            document.getElementById("msgInput").focus();
+        }
+
+        function cancelReply() { replyingTo = null; document.getElementById("reply-bar").style.display = "none"; }
+
+        // Arxa fon
+        const canvas = document.getElementById("bg-canvas"); const ctx = canvas.getContext("2d");
+        canvas.width = window.innerWidth; canvas.height = window.innerHeight;
+        let squares = []; for(let i=0; i<25; i++) squares.push({ x: Math.random()*canvas.width, y: Math.random()*canvas.height, size: Math.random()*15+5, speed: Math.random()*1+0.5 });
+        function animate() { ctx.clearRect(0,0,canvas.width,canvas.height); ctx.fillStyle = "rgba(59,130,246,0.1)"; squares.forEach((s) => { s.y -= s.speed; if(s.y < -20) s.y = canvas.height+20; ctx.fillRect(s.x, s.y, s.size, s.size); }); requestAnimationFrame(animate); }
+        animate();
+    </script>
+</body>
+</html>
