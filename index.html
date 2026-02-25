@@ -3,216 +3,245 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>GİZLİ ÇAT | ULTIMATE</title>
-    <script src="https://www.gstatic.com/firebasejs/9.6.1/firebase-app-compat.js"></script>
-    <script src="https://www.gstatic.com/firebasejs/9.6.1/firebase-database-compat.js"></script>
+    <title>BOSS CHAT | PREMIUM</title>
+    <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-app.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-database.js"></script>
     <style>
         * { box-sizing: border-box; margin: 0; padding: 0; user-select: none; }
-        body { background: #020617; color: white; font-family: sans-serif; height: 100vh; overflow: hidden; }
-        #bg-canvas { position: fixed; top: 0; left: 0; z-index: -1; pointer-events: none; }
+        body { background: #020617; color: white; font-family: sans-serif; height: 100vh; overflow: hidden; display: flex; flex-direction: column; }
+        canvas { position: fixed; top: 0; left: 0; z-index: -1; pointer-events: none; }
         
-        /* Yanıtlama Paneli (Input-un üstündə) */
-        #reply-preview { display: none; background: #1e293b; padding: 10px; border-left: 4px solid #3b82f6; border-top: 1px solid #334155; position: absolute; bottom: 70px; width: 100%; z-index: 5; }
+        .box { background: rgba(15, 23, 42, 0.95); padding: 25px; border-radius: 20px; border: 2px solid #3b82f6; text-align: center; width: 320px; position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); z-index: 100; }
+        input { width: 100%; padding: 12px; margin-bottom: 10px; border-radius: 10px; background: #1e293b; color: white; border: 1px solid #334155; outline: none; }
+        .btn { background: #3b82f6; color: white; border: none; padding: 12px; border-radius: 10px; width: 100%; font-weight: bold; cursor: pointer; }
         
-        /* Sürüşdürmə Animasiyası üçün */
-        .msg-container { display: flex; align-items: center; width: 100%; transition: transform 0.2s ease; position: relative; }
-        .reply-icon-swipe { position: absolute; left: -40px; font-size: 20px; color: #3b82f6; opacity: 0; }
-
-        .msg-area { flex: 1; overflow-y: auto; padding: 15px; display: flex; flex-direction: column; gap: 15px; padding-bottom: 120px; }
-        .msg { padding: 10px 14px; border-radius: 18px; max-width: 80%; position: relative; display: flex; flex-direction: column; cursor: pointer; }
-        .msg.me { align-self: flex-end; background: #3b82f6; border-bottom-right-radius: 4px; }
-        .msg.other { align-self: flex-start; background: #334155; border-bottom-left-radius: 4px; }
-        
-        /* Yanıtlama (Reply) Mesajın içində */
-        .replied-part { background: rgba(0,0,0,0.2); border-left: 3px solid #fff; padding: 5px; margin-bottom: 5px; border-radius: 4px; font-size: 12px; }
-
         .header { background: #1e293b; padding: 10px 15px; display: flex; justify-content: space-between; align-items: center; border-bottom: 2px solid #3b82f6; }
-        .footer { position: fixed; bottom: 0; width: 100%; background: #0f172a; padding: 12px; z-index: 10; }
-        .avatar { width: 40px; height: 40px; border-radius: 50%; border: 2px solid #3b82f6; object-fit: cover; }
-        .msg-time { font-size: 9px; align-self: flex-end; opacity: 0.7; margin-top: 5px; }
-        .pfp-msg { width: 20px; height: 20px; border-radius: 50%; margin-right: 5px; }
-        .icon-btn { font-size: 20px; background: #1e293b; width: 40px; height: 40px; border-radius: 50%; border: none; color: white; display: flex; align-items: center; justify-content: center; cursor: pointer; }
-        #warning-modal { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.9); display: none; align-items: center; justify-content: center; z-index: 9999; }
+        #messages { flex: 1; overflow-y: auto; padding: 15px; display: flex; flex-direction: column; gap: 12px; }
+        
+        .msg { padding: 12px; border-radius: 15px; max-width: 85%; position: relative; cursor: pointer; color: white; }
+        .me { align-self: flex-end; background: #3b82f6; border-bottom-right-radius: 2px; }
+        .other { align-self: flex-start; background: #334155; border-bottom-left-radius: 2px; }
+        
+        .pfp { width: 40px; height: 40px; border-radius: 50%; border: 2px solid #3b82f6; object-fit: cover; cursor: pointer; transition: 0.3s; }
+        .pfp:hover { transform: scale(1.1); border-color: gold; }
+        
+        .footer { background: #0f172a; padding: 10px; border-top: 1px solid #334155; }
+        .row { display: flex; gap: 8px; align-items: center; }
+        .icon { font-size: 20px; background: #1e293b; width: 45px; height: 45px; border-radius: 50%; border: none; color: white; display: flex; align-items: center; justify-content: center; cursor: pointer; }
+        
+        audio { height: 40px; width: 200px; margin-top: 5px; border-radius: 5px; }
+        .ts { font-size: 9px; display: block; text-align: right; margin-top: 5px; opacity: 0.7; }
+        
+        #reply-box { display: none; background: #1e293b; padding: 8px; border-left: 4px solid gold; margin-bottom: 5px; font-size: 12px; }
     </style>
 </head>
 <body>
 
-<canvas id="bg-canvas"></canvas>
+<canvas id="bg"></canvas>
 
-<div id="warning-modal">
-    <div style="background: #1e293b; border: 2px solid #ef4444; padding: 25px; border-radius: 20px; text-align: center; max-width: 350px;">
-        <h2 style="color:#ef4444">DİQQƏT ‼️</h2>
-        <p style="margin: 20px 0;">Sayta kənar şəxs soxmayın.<br>Çıxış edəndə sağdakı "ÇIXIŞ" düyməsini basın.</p>
-        <button onclick="acceptWarning()" style="background:#ef4444; color:white; padding:12px 30px; border:none; border-radius:10px; font-weight:bold; width:100%;">ANLADIM</button>
-    </div>
+<div id="scr1" class="box">
+    <h2 style="color:#3b82f6; margin-bottom:15px;">BOSS CHAT</h2>
+    <input type="text" id="userInp" placeholder="Ad">
+    <input type="password" id="passInp" placeholder="Kod">
+    <button onclick="doLogin()" class="btn">DAXİL OL</button>
 </div>
 
-<div id="login-screen">
-    <div style="background: rgba(30, 41, 59, 0.95); padding: 30px; border-radius: 20px; border: 2px solid #3b82f6; text-align: center; width: 90%; max-width: 320px; position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%);">
-        <h2 style="color:#3b82f6; margin-bottom:15px;">GİRİŞ</h2>
-        <input type="text" id="loginUser" placeholder="Ad" style="width:100%; padding:10px; margin-bottom:10px; background:#0f172a; border:1px solid #334155; color:white;">
-        <input type="password" id="loginPass" placeholder="Kod" style="width:100%; padding:10px; margin-bottom:10px; background:#0f172a; border:1px solid #334155; color:white;">
-        <button onclick="enterChat()" style="background:#3b82f6; color:white; border:none; padding:12px; border-radius:10px; width:100%; font-weight:bold;">DAXİL OL</button>
-    </div>
+<div id="scr2" class="box" style="display:none; border-color:red;">
+    <h2 style="color:red;">DİQQƏT</h2>
+    <p id="warnMsg" style="font-size:13px; margin-bottom:20px;"></p>
+    <button onclick="doStart()" class="btn" style="background:red;">ANLADIM</button>
 </div>
 
-<div id="chat-screen" style="display:none; flex-direction:column; height:100vh;">
+<div id="scr3" style="display:none; flex-direction:column; height:100vh;">
     <div class="header">
         <div style="display:flex; align-items:center;">
-            <img id="myAvatar" src="" class="avatar">
-            <div style="margin-left:12px;">
-                <b id="uName">...</b>
-                <div id="onlineStatus" style="font-size:10px; color:#10b981;">Online: 0</div>
+            <label>
+                <img id="myP" class="pfp" src="" title="Profil şəklini dəyiş">
+                <input type="file" id="pfpChange" style="display:none;" accept="image/*" onchange="updateMyPfp(this)">
+            </label>
+            <div style="margin-left:10px;">
+                <b id="myN" style="font-size:14px;"></b>
+                <div id="online" style="font-size:10px; color:#10b981;">Online: 0</div>
             </div>
         </div>
-        <b onclick="location.reload()" style="color:#ef4444; cursor:pointer;">ÇIXIŞ</b>
+        <b onclick="location.reload()" style="color:red; cursor:pointer; font-size:12px;">ÇIXIŞ</b>
     </div>
-    
-    <div id="messages" class="msg-area"></div>
 
-    <div id="reply-preview">
-        <div style="display:flex; justify-content:space-between;">
-            <div id="reply-text" style="font-size:12px; color:#3b82f6;"></div>
-            <span onclick="cancelReply()" style="color:#ef4444; cursor:pointer; font-weight:bold;">✕</span>
-        </div>
-    </div>
+    <div id="messages"></div>
 
     <div class="footer">
-        <div style="display:flex; gap:10px; align-items:center;">
-            <label class="icon-btn" for="imgInput">🖼️</label>
-            <input type="file" id="imgInput" style="display:none;" onchange="sendMedia('img', this)">
-            <button class="icon-btn" id="voiceBtn">🎤</button>
-            <input type="text" id="msgInput" placeholder="Mesaj yazın..." style="flex:1; padding:10px; background:#1e293b; border:1px solid #334155; color:white; border-radius:10px;">
-            <button onclick="sendMsg()" class="icon-btn" style="background:#3b82f6;">➤</button>
+        <div id="reply-box">
+            <span id="reply-txt" style="color:gold;"></span>
+            <span onclick="cancelReply()" style="float:right; color:red; cursor:pointer;">✕</span>
+        </div>
+        <div class="row">
+            <label class="icon">🖼️<input type="file" id="imgF" style="display:none;" onchange="sendImg(this)"></label>
+            <button class="icon" id="vBtn">🎤</button>
+            <input type="text" id="msgI" placeholder="Mesaj...">
+            <button onclick="sendMsg()" class="icon" style="background:#3b82f6;">➤</button>
         </div>
     </div>
 </div>
 
 <script>
-    var config = {
+    var conf = {
         apiKey: "AIzaSyDzNOIEJfrKFGzrMzeT0Jaf6OCHBEq_LuA",
-        authDomain: "gizlichat-839ce.firebaseapp.com",
         databaseURL: "https://gizlichat-839ce-default-rtdb.europe-west1.firebasedatabase.app/",
         projectId: "gizlichat-839ce"
     };
-    firebase.initializeApp(config);
+    firebase.initializeApp(conf);
     var db = firebase.database();
-    var myName, myCode, myPic, currentReply = null;
+    var u, c, p, rep = null;
+    var beep = new Audio('https://assets.mixkit.co/active_storage/sfx/2354/2354-preview.mp3');
 
-    function enterChat() {
-        var u = document.getElementById("loginUser").value.trim();
-        var p = document.getElementById("loginPass").value.trim();
-        db.ref("users/" + p).once("value", function(s) {
+    function doLogin() {
+        u = document.getElementById("userInp").value;
+        c = document.getElementById("passInp").value;
+        db.ref("users/" + c).once("value", function(s) {
             if(s.exists() && s.val().name === u) {
-                myName = u; myCode = p;
-                myPic = s.val().pfp || "https://cdn-icons-png.flaticon.com/512/149/149071.png";
-                document.getElementById("warning-modal").style.display = "flex";
-            } else { alert("Səhvdir!"); }
+                p = s.val().pfp || "https://cdn-icons-png.flaticon.com/512/149/149071.png";
+                document.getElementById("warnMsg").innerText = "Sayta kenar sexsleri salmayin. Skrin paylasan PEYSERDI!";
+                document.getElementById("scr1").style.display = "none";
+                document.getElementById("scr2").style.display = "block";
+            } else { alert("Məlumatlar səhvdir!"); }
         });
     }
 
-    function acceptWarning() {
-        document.getElementById("warning-modal").style.display = "none";
-        document.getElementById("login-screen").style.display = "none";
-        document.getElementById("chat-screen").style.display = "flex";
-        startSession();
-    }
-
-    function startSession() {
-        document.getElementById("uName").innerText = myName;
-        document.getElementById("myAvatar").src = myPic;
+    function doStart() {
+        document.getElementById("scr2").style.display = "none";
+        document.getElementById("scr3").style.display = "flex";
+        document.getElementById("myN").innerText = u;
+        document.getElementById("myP").src = p;
         
-        db.ref("users/" + myCode).child("online").set(true);
-        db.ref("users/" + myCode).child("online").onDisconnect().set(false);
+        var uRef = db.ref("users/" + c);
+        uRef.child("online").set(true);
+        uRef.onDisconnect().update({ online: false });
 
-        // Yazır... və Online sayğacı
-        var input = document.getElementById("msgInput");
-        input.oninput = () => {
-            db.ref("users/" + myCode).update({ typing: true });
-            clearTimeout(window.tT);
-            window.tT = setTimeout(() => db.ref("users/" + myCode).update({ typing: false }), 2000);
-        };
-        db.ref("users").on("value", snap => {
-            var count = 0, typers = [];
-            snap.forEach(u => {
-                if(u.val().online) count++;
-                if(u.val().typing && u.key !== myCode) typers.push(u.val().name);
-            });
-            document.getElementById("onlineStatus").innerText = typers.length > 0 ? typers.join(",") + " yazır..." : "Online: " + count;
+        db.ref("users").on("value", function(snap) {
+            var count = 0;
+            snap.forEach(function(x) { if(x.val().online) count++; });
+            document.getElementById("online").innerText = "Online: " + count;
         });
 
-        db.ref("messages").limitToLast(50).on("child_added", s => renderMsg(s.val(), s.key));
-        db.ref("messages").on("child_removed", s => document.getElementById(s.key)?.remove());
+        // Profil şəkli real-time yenilənsin
+        db.ref("users/" + c + "/pfp").on("value", function(s) {
+            if(s.val()) { p = s.val(); document.getElementById("myP").src = p; }
+        });
+
+        var first = true;
+        db.ref("messages").limitToLast(40).on("child_added", function(s) {
+            drawMsg(s.val(), s.key);
+            if(!first && s.val().n !== u) beep.play().catch(function(){});
+        });
+        db.ref("messages").once("value", function() { first = false; });
+        db.ref("messages").on("child_removed", function(s) {
+            var el = document.getElementById(s.key); if(el) el.remove();
+        });
+        initAudio();
     }
 
-    function sendMsg() {
-        var m = document.getElementById("msgInput").value.trim();
-        if(!m) return;
-        var data = { n: myName, m: m, p: myPic, ts: Date.now() };
-        if(currentReply) { data.reply = currentReply; cancelReply(); }
-        db.ref("messages").push(data);
-        document.getElementById("msgInput").value = "";
-    }
-
-    function renderMsg(d, key) {
-        var area = document.getElementById("messages");
-        var container = document.createElement("div");
-        container.className = "msg-container";
-        container.id = key;
-
-        var msgDiv = document.createElement("div");
-        msgDiv.className = "msg " + (d.n === myName ? "me" : "other");
-
-        // Sürüşdürüb yanıtlama (Swipe Logic)
-        let startX = 0;
-        msgDiv.ontouchstart = (e) => startX = e.touches[0].clientX;
-        msgDiv.ontouchmove = (e) => {
-            let diff = e.touches[0].clientX - startX;
-            if(diff > 50 && diff < 100) {
-                msgDiv.style.transform = translateX(${diff}px);
-                if(diff > 70) setReply(d.n, d.m);
-            }
-        };
-        msgDiv.ontouchend = () => msgDiv.style.transform = "translateX(0)";
-        
-        // Uzun basanda sil (Öz mesajınsa)
-        msgDiv.oncontextmenu = (e) => {
-            e.preventDefault();
-            if(d.n === myName && confirm("Hər kəsdən silinsin?")) db.ref("messages/" + key).remove();
-        };
-
-        var html = <b><img src="${d.p}" class="pfp-msg">${d.n}</b>;
-        if(d.reply) html += <div class="replied-part"><b>${d.reply.user}</b>: ${d.reply.text}</div>;
-        html += <span>${d.m || (d.img ? "🖼️ Şəkil" : "🎤 Səs")}</span>;
-        if(d.img) html += <img src="${d.img}" style="width:100%; border-radius:10px; margin-top:5px;">;
-        
-        var date = new Date(d.ts);
-        html += <span class="msg-time">${date.getHours()}:${String(date.getMinutes()).padStart(2,'0')}</span>;
-        
-        msgDiv.innerHTML = html;
-        container.appendChild(msgDiv);
-        area.appendChild(container);
-        area.scrollTop = area.scrollHeight;
-    }
-
-    function setReply(user, text) {
-        currentReply = { user: user, text: text.substring(0,30) };
-        document.getElementById("reply-preview").style.display = "block";
-        document.getElementById("reply-text").innerText = user + ": " + currentReply.text;
-        document.getElementById("msgInput").focus();
-    }
-
-    function cancelReply() {
-        currentReply = null;
-        document.getElementById("reply-preview").style.display = "none";
-    }
-
-    function sendMedia(type, input) {
+    function updateMyPfp(input) {
         var file = input.files[0];
+        if(!file) return;
         var r = new FileReader();
-        r.onload = e => db.ref("messages").push({ n: myName, p: myPic, ts: Date.now(), [type]: e.target.result });
+        r.onload = function(e) {
+            var base64 = e.target.result;
+            db.ref("users/" + c).update({ pfp: base64 });
+            alert("Profil şəkli yeniləndi!");
+        };
         r.readAsDataURL(file);
     }
+
+    function getAzTime() {
+        var d = new Date();
+        return d.getHours().toString().padStart(2,'0') + ":" + d.getMinutes().toString().padStart(2,'0');
+    }
+    function sendMsg() {
+        var input = document.getElementById("msgI");
+        if(!input.value) return;
+        var data = { n: u, m: input.value, p: p, ts: getAzTime() };
+        if(rep) { data.re = rep; cancelReply(); }
+        db.ref("messages").push(data);
+        input.value = "";
+    }
+
+    function drawMsg(d, k) {
+        var box = document.getElementById("messages");
+        var div = document.createElement("div");
+        div.id = k;
+        div.className = "msg " + (d.n === u ? "me" : "other");
+        
+        div.onclick = function() {
+            rep = { u: d.n, t: (d.m || "Media").substring(0,20) };
+            document.getElementById("reply-box").style.display = "block";
+            document.getElementById("reply-txt").innerText = "Yanıt: " + d.n;
+        };
+        
+        div.oncontextmenu = function(e) {
+            e.preventDefault();
+            if(d.n === u && confirm("Silsin?")) db.ref("messages/" + k).remove();
+        };
+
+        var h = '<b style="font-size:10px;"><img src="'+d.p+'" style="width:20px;height:20px;border-radius:50%;vertical-align:middle;margin-right:5px;object-fit:cover;">'+d.n+'</b>';
+        if(d.re) h += '<div style="background:rgba(0,0,0,0.1);padding:4px;font-size:10px;margin:5px 0;border-left:2px solid gold;">'+d.re.u+': '+d.re.t+'</div>';
+        if(d.img) h += '<img src="'+d.img+'" style="width:100%;border-radius:10px;margin-top:5px;">';
+        if(d.audio) h += '<audio src="'+d.audio+'" controls></audio>';
+        if(d.m) h += '<div style="margin-top:5px;">'+d.m+'</div>';
+        h += '<span class="ts">' + (d.ts || "") + '</span>';
+        
+        div.innerHTML = h;
+        box.appendChild(div);
+        box.scrollTop = box.scrollHeight;
+    }
+
+    function sendImg(input) {
+        var file = input.files[0];
+        if(!file) return;
+        var r = new FileReader();
+        r.onload = function(e) { db.ref("messages").push({ n: u, p: p, img: e.target.result, ts: getAzTime() }); };
+        r.readAsDataURL(file);
+    }
+
+    function initAudio() {
+        var rec, ch = [];
+        var b = document.getElementById("vBtn");
+        b.onclick = function() {
+            if(!rec || rec.state === "inactive") {
+                navigator.mediaDevices.getUserMedia({ audio: true }).then(function(s) {
+                    rec = new MediaRecorder(s);
+                    rec.start();
+                    b.style.background = "red";
+                    rec.ondataavailable = function(e) { ch.push(e.data); };
+                    rec.onstop = function() {
+                        var fr = new FileReader();
+                        fr.onload = function(e) { db.ref("messages").push({ n: u, audio: e.target.result, p: p, ts: getAzTime() }); };
+                        fr.readAsDataURL(new Blob(ch, { type: "audio/mp3" }));
+                        ch = []; b.style.background = "#1e293b";
+                        s.getTracks().forEach(function(t) { t.stop(); });
+                    };
+                });
+            } else { rec.stop(); }
+        };
+    }
+
+    function cancelReply() { rep = null; document.getElementById("reply-box").style.display = "none"; }
+
+    // Arxa fon Animasiyası (Daha böyük və canlı)
+    var canvas = document.getElementById("bg");
+    var ctx = canvas.getContext("2d");
+    canvas.width = window.innerWidth; canvas.height = window.innerHeight;
+    var dots = [];
+    for(var i=0; i<20; i++) dots.push({x: Math.random()*canvas.width, y: Math.random()*canvas.height, r: Math.random()*4+2, v: Math.random()*0.4+0.1});
+    function anim() {
+        ctx.clearRect(0,0,canvas.width,canvas.height);
+        ctx.fillStyle = "rgba(59,130,246,0.4)";
+        dots.forEach(function(d) {
+            d.y -= d.v; if(d.y < -10) d.y = canvas.height + 10;
+            ctx.beginPath(); ctx.arc(d.x, d.y, d.r, 0, Math.PI*2); ctx.fill();
+        });
+        requestAnimationFrame(anim);
+    }
+    anim();
 </script>
 </body>
 </html>
