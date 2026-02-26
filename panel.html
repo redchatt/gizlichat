@@ -2,80 +2,60 @@
 <html lang="az">
 <head>
     <meta charset="UTF-8">
-    <title>BOSS ADMIN PANEL</title>
+    <title>ESCOBAR ADMIN</title>
     <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-app.js"></script>
     <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-database.js"></script>
     <style>
-        body { background: #020617; color: white; font-family: sans-serif; display: flex; justify-content: center; align-items: center; height: 100vh; margin: 0; }
-        .admin-box { background: #1e293b; padding: 30px; border-radius: 15px; border: 2px solid #3b82f6; width: 350px; }
-        input { width: 100%; padding: 12px; margin: 10px 0; border-radius: 8px; border: 1px solid #334155; background: #0f172a; color: white; }
-        button { width: 100%; padding: 12px; background: #10b981; color: white; border: none; border-radius: 8px; cursor: pointer; font-weight: bold; }
-        .user-list { margin-top: 20px; font-size: 13px; max-height: 200px; overflow-y: auto; }
-        .user-item { background: #334155; padding: 8px; margin-bottom: 5px; border-radius: 5px; display: flex; justify-content: space-between; }
+        body { background: #020617; color: white; font-family: sans-serif; padding: 20px; }
+        .card { background: #1e293b; padding: 20px; border-radius: 12px; border: 1px solid #3b82f6; max-width: 500px; margin: 0 auto 20px; }
+        input { width: 100%; padding: 10px; margin: 10px 0; background: #0f172a; color: white; border: 1px solid #334155; }
+        button { width: 100%; padding: 10px; cursor: pointer; font-weight: bold; border: none; border-radius: 5px; }
+        .user { display: flex; justify-content: space-between; background: #334155; padding: 10px; margin-top: 5px; border-radius: 5px; }
     </style>
 </head>
 <body>
-
-<div class="admin-box">
-    <h2 style="text-align: center; color: #3b82f6;">İstifadəçi Yarat</h2>
-    <input type="text" id="newNick" placeholder="Uşağın adı">
-    <input type="text" id="newPass" placeholder="Giriş şifrəsi (Məs: 1234)">
-    <button onclick="addUser()">BAZAYA ƏLAVƏ ET</button>
-
-    <div class="user-list" id="list">
+    <div id="lock" class="card" style="text-align:center;">
+        <h2>ADMIN GİRİŞ</h2>
+        <input type="password" id="ap" placeholder="Şifrə">
+        <button onclick="go()" style="background:red; color:white;">GİR</button>
+    </div>
+    <div id="main" style="display:none;">
+        <div class="card">
+            <h2>Uşaq Əlavə Et</h2>
+            <input type="text" id="n" placeholder="Ad">
+            <input type="text" id="p" placeholder="Şifrə">
+            <button onclick="add()" style="background:#10b981; color:white;">BAZAYA SAL</button>
         </div>
-</div>
-
+        <div class="card">
+            <h2>Söhbəti Sil</h2>
+            <button onclick="delChat()" style="background:red; color:white;">BÜTÜN MESAJLARI SİL</button>
+        </div>
+        <div class="card">
+            <h2>Uşaqlar və Ban</h2>
+            <div id="list"></div>
+        </div>
+    </div>
 <script>
-    var conf = {
-        apiKey: "AIzaSyDzNOIEJfrKFGzrMzeT0Jaf6OCHBEq_LuA",
-        databaseURL: "https://gizlichat-839ce-default-rtdb.europe-west1.firebasedatabase.app/",
-        projectId: "gizlichat-839ce"
-    };
-    firebase.initializeApp(conf);
-    var db = firebase.database();
-
-    // İstifadəçi Əlavə Etmə
-    function addUser() {
-        var nick = document.getElementById("newNick").value.trim();
-        var pass = document.getElementById("newPass").value.trim();
-
-        if(nick && pass) {
-            // .set yox, .update istifadə edirik ki, köhnələr silinməsin!
-            db.ref("users/" + pass).update({
-                name: nick,
-                pfp: "https://cdn-icons-png.flaticon.com/512/149/149071.png",
-                online: false,
-                typing: false
-            }, function(error) {
-                if (error) alert("Xəta oldu!");
-                else {
-                    alert("Uşaq əlavə olundu: " + nick);
-                    document.getElementById("newNick").value = "";
-                    document.getElementById("newPass").value = "";
-                }
+    var conf = { apiKey: "AIzaSyDzNOIEJfrKFGzrMzeT0Jaf6OCHBEq_LuA", databaseURL: "https://gizlichat-839ce-default-rtdb.europe-west1.firebasedatabase.app/", projectId: "gizlichat-839ce" };
+    firebase.initializeApp(conf); var db = firebase.database();
+    function go() { if(document.getElementById("ap").value === "Escobar 1988") { document.getElementById("lock").style.display="none"; document.getElementById("main").style.display="block"; load(); } else alert("Səhvdir!"); }
+    function add() { var name=document.getElementById("n").value, pass=document.getElementById("p").value; if(name&&pass) db.ref("users/"+pass).set({name:name, banned:false, online:false}); }
+    function delChat() { if(confirm("Bütün mesajlar silinsin?")) db.ref("messages").remove(); }
+    function load() {
+        db.ref("users").on("value", function(snap) {
+            var h = ""; snap.forEach(u => {
+                var d = u.val(); var bCol = d.banned ? "red" : "orange";
+                h += <div class="user">
+                    <span>${d.online?'🟢':'⚪'} ${d.name} (${u.key})</span>
+                    <div>
+                        <button onclick="db.ref('users/${u.key}').update({banned:${!d.banned}})" style="width:70px; background:${bCol}">${d.banned?'BANSIZ':'BANLA'}</button>
+                        <button onclick="db.ref('users/${u.key}').remove()" style="width:40px; background:gray">SİL</button>
+                    </div>
+                </div>;
             });
-        }
-    }
-
-    // Siyahını göstər
-    db.ref("users").on("value", function(snap) {
-        var list = document.getElementById("list");
-        list.innerHTML = "<b>Mövcud uşaqlar:</b><br>";
-        snap.forEach(function(u) {
-            list.innerHTML += <div class="user-item">
-                <span>${u.val().name} (Kod: ${u.key})</span>
-                <button onclick="deleteUser('${u.key}')" style="width: 50px; background: red; padding: 2px; font-size: 10px;">Sil</button>
-            </div>;
+            document.getElementById("list").innerHTML = h;
         });
-    });
-
-    function deleteUser(key) {
-        if(confirm("Bu istifadəçini silmək istəyirsən?")) {
-            db.ref("users/" + key).remove();
-        }
     }
 </script>
-
 </body>
 </html>
