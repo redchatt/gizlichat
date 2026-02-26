@@ -2,58 +2,153 @@
 <html lang="az">
 <head>
     <meta charset="UTF-8">
-    <title>ESCOBAR ADMIN</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ESCOBAR ADMIN CONTROL</title>
     <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-app.js"></script>
     <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-database.js"></script>
     <style>
-        body { background: #020617; color: white; font-family: sans-serif; padding: 20px; }
-        .card { background: #1e293b; padding: 20px; border-radius: 12px; border: 1px solid #3b82f6; max-width: 500px; margin: 0 auto 20px; }
-        input { width: 100%; padding: 10px; margin: 10px 0; background: #0f172a; color: white; border: 1px solid #334155; }
-        button { width: 100%; padding: 10px; cursor: pointer; font-weight: bold; border: none; border-radius: 5px; }
-        .user { display: flex; justify-content: space-between; background: #334155; padding: 10px; margin-top: 5px; border-radius: 5px; }
+        * { box-sizing: border-box; font-family: 'Segoe UI', sans-serif; }
+        body { background: #020617; color: white; margin: 0; padding: 20px; }
+        
+        /* Giriş Paneli */
+        .login-box { background: #1e293b; padding: 30px; border-radius: 15px; border: 2px solid #ef4444; width: 320px; position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); z-index: 1000; text-align: center; box-shadow: 0 0 20px rgba(239, 68, 68, 0.3); }
+        
+        /* Əsas Panel */
+        .container { display: none; max-width: 900px; margin: 0 auto; flex-direction: column; gap: 20px; }
+        .card { background: #1e293b; padding: 20px; border-radius: 12px; border: 1px solid #334155; margin-bottom: 20px; }
+        
+        input { width: 100%; padding: 12px; margin: 10px 0; border-radius: 8px; border: 1px solid #334155; background: #0f172a; color: white; outline: none; }
+        button { padding: 12px; border: none; border-radius: 8px; cursor: pointer; font-weight: bold; transition: 0.3s; width: 100%; margin-top: 5px; }
+        
+        .btn-green { background: #10b981; color: white; }
+        .btn-red { background: #ef4444; color: white; }
+        .btn-ban { background: #f59e0b; color: white; width: auto; padding: 5px 10px; font-size: 12px; }
+        
+        .user-row { display: flex; justify-content: space-between; align-items: center; padding: 10px; border-bottom: 1px solid #334155; }
+        .status { width: 10px; height: 10px; border-radius: 50%; display: inline-block; margin-right: 8px; }
+        .online { background: #10b981; box-shadow: 0 0 8px #10b981; }
+        .offline { background: #64748b; }
+        h2 { color: #3b82f6; border-bottom: 2px solid #3b82f6; padding-bottom: 10px; margin-top: 0; }
     </style>
 </head>
 <body>
-    <div id="lock" class="card" style="text-align:center;">
-        <h2>ADMIN GİRİŞ</h2>
-        <input type="password" id="ap" placeholder="Şifrə">
-        <button onclick="go()" style="background:red; color:white;">GİR</button>
+
+<div id="loginScreen" class="login-box">
+    <h2 style="color: #ef4444; border:none;">ADMIN GİRİŞ</h2>
+    <input type="text" id="admUser" placeholder="Admin Adı">
+    <input type="password" id="admPass" placeholder="Admin Şifrəsi">
+    <button onclick="checkAdmin()" class="btn-red">SİSTEMƏ GİR</button>
+</div>
+
+<div id="panelScreen" class="container">
+    <div class="card">
+        <h2>Yeni Uşaq Əlavə Et</h2>
+        <input type="text" id="newN" placeholder="Uşağın Adı">
+        <input type="text" id="newP" placeholder="Giriş Kodu (Şifrə)">
+        <button onclick="addUser()" class="btn-green">BAZAYA ƏLAVƏ ET</button>
     </div>
-    <div id="main" style="display:none;">
-        <div class="card">
-            <h2>Uşaq Əlavə Et</h2>
-            <input type="text" id="n" placeholder="Ad">
-            <input type="text" id="p" placeholder="Şifrə">
-            <button onclick="add()" style="background:#10b981; color:white;">BAZAYA SAL</button>
-        </div>
-        <div class="card">
-            <h2>Söhbəti Sil</h2>
-            <button onclick="delChat()" style="background:red; color:white;">BÜTÜN MESAJLARI SİL</button>
-        </div>
-        <div class="card">
-            <h2>Uşaqlar və Ban</h2>
-            <div id="list"></div>
-        </div>
+
+    <div class="card">
+        <h2>Uşaqların Siyahısı & Ban</h2>
+        <div id="userList">Məlumatlar yüklənir...</div>
     </div>
+
+    <div class="card" style="border-color: #ef4444;">
+        <h2>Təhlükəli Bölgə</h2>
+        <button onclick="clearChat()" class="btn-red">BÜTÜN MESAJLARI SİL</button>
+    </div>
+</div>
+
 <script>
-    var conf = { apiKey: "AIzaSyDzNOIEJfrKFGzrMzeT0Jaf6OCHBEq_LuA", databaseURL: "https://gizlichat-839ce-default-rtdb.europe-west1.firebasedatabase.app/", projectId: "gizlichat-839ce" };
-    firebase.initializeApp(conf); var db = firebase.database();
-    function go() { if(document.getElementById("ap").value === "Escobar 1988") { document.getElementById("lock").style.display="none"; document.getElementById("main").style.display="block"; load(); } else alert("Səhvdir!"); }
-    function add() { var name=document.getElementById("n").value, pass=document.getElementById("p").value; if(name&&pass) db.ref("users/"+pass).set({name:name, banned:false, online:false}); }
-    function delChat() { if(confirm("Bütün mesajlar silinsin?")) db.ref("messages").remove(); }
-    function load() {
-        db.ref("users").on("value", function(snap) {
-            var h = ""; snap.forEach(u => {
-                var d = u.val(); var bCol = d.banned ? "red" : "orange";
-                h += <div class="user">
-                    <span>${d.online?'🟢':'⚪'} ${d.name} (${u.key})</span>
-                    <div>
-                        <button onclick="db.ref('users/${u.key}').update({banned:${!d.banned}})" style="width:70px; background:${bCol}">${d.banned?'BANSIZ':'BANLA'}</button>
-                        <button onclick="db.ref('users/${u.key}').remove()" style="width:40px; background:gray">SİL</button>
-                    </div>
-                </div>;
+    // Sənin Firebase məlumatların
+    var firebaseConfig = {
+        apiKey: "AIzaSyDzNOIEJfrKFGzrMzeT0Jaf6OCHBEq_LuA",
+        databaseURL: "https://gizlichat-839ce-default-rtdb.europe-west1.firebasedatabase.app/",
+        projectId: "gizlichat-839ce"
+    };
+    
+    // Firebase-i başlat
+    if (!firebase.apps.length) {
+        firebase.initializeApp(firebaseConfig);
+    }
+    var db = firebase.database();
+
+    // Giriş yoxlaması
+    function checkAdmin() {
+        var user = document.getElementById("admUser").value;
+        var pass = document.getElementById("admPass").value;
+
+        if(user === "Escobar" && pass === "1988") {
+            document.getElementById("loginScreen").style.display = "none";
+            document.getElementById("panelScreen").style.display = "flex";
+            loadUsers();
+        } else {
+            alert("Məlumatlar səhvdir!");
+        }
+    }
+    // Uşaq əlavə etmək
+    function addUser() {
+        var n = document.getElementById("newN").value.trim();
+        var p = document.getElementById("newP").value.trim();
+
+        if(n && p) {
+            db.ref("users/" + p).set({
+                name: n,
+                pfp: "https://cdn-icons-png.flaticon.com/512/149/149071.png",
+                online: false,
+                banned: false
+            }).then(function() {
+                alert(n + " əlavə edildi!");
+                document.getElementById("newN").value = "";
+                document.getElementById("newP").value = "";
             });
-            document.getElementById("list").innerHTML = h;
+        } else {
+            alert("Ad və kod yaz!");
+        }
+    }
+
+    // Bütün mesajları silmək
+    function clearChat() {
+        if(confirm("BÜTÜN MESAJLAR SİLİNSİN?")) {
+            db.ref("messages").remove().then(function() {
+                alert("Mesajlar təmizləndi.");
+            });
+        }
+    }
+
+    // Ban statusunu dəyişmək
+    function setBan(id, status) {
+        db.ref("users/" + id).update({ banned: !status });
+    }
+
+    // İstifadəçini bazadan silmək
+    function killUser(id) {
+        if(confirm("Bu uşağı bazadan tam silək?")) {
+            db.ref("users/" + id).remove();
+        }
+    }
+
+    // İstifadəçiləri canlı siyahıya çıxarmaq
+    function loadUsers() {
+        db.ref("users").on("value", function(snap) {
+            var box = document.getElementById("userList");
+            var html = "";
+            
+            snap.forEach(function(u) {
+                var d = u.val();
+                var st = d.online ? "online" : "offline";
+                var banBtnTxt = d.banned ? "BANLI" : "BANLA";
+                var banBtnCol = d.banned ? "red" : "#f59e0b";
+
+                html += '<div class="user-row">' +
+                    '<div><span class="status ' + st + '"></span>' +
+                    '<b>' + d.name + '</b> <small>(' + u.key + ')</small></div>' +
+                    '<div>' +
+                    '<button onclick="setBan(\'' + u.key + '\', ' + d.banned + ')" class="btn-ban" style="background:' + banBtnCol + '">' + banBtnTxt + '</button>' +
+                    '<button onclick="killUser(\'' + u.key + '\')" class="btn-ban" style="background:#64748b; margin-left:5px;">SİL</button>' +
+                    '</div></div>';
+            });
+            box.innerHTML = html || "Heç kim yoxdur.";
         });
     }
 </script>
